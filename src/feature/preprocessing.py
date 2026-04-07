@@ -1,21 +1,24 @@
 import re
 import pandas as pd
-
-from nltk.corpus import stopwords
+import nltk
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import hstack
 
 
-# ---------------------------
 # Global Stopwords
-# ---------------------------
-STOP_WORDS = set(stopwords.words('english'))
+
+# Ensure stopwords are available
+try:
+    from nltk.corpus import stopwords
+    STOP_WORDS = set(stopwords.words('english'))
+except LookupError:
+    nltk.download('stopwords')
+    from nltk.corpus import stopwords
+    STOP_WORDS = set(stopwords.words('english'))
 
 
-# ---------------------------
 # Text Cleaning
-# ---------------------------
 def clean_text(text):
     if isinstance(text, str):
         text = re.sub('[^a-zA-Z0-9\n]', ' ', text)
@@ -25,9 +28,7 @@ def clean_text(text):
     return ""
 
 
-# ---------------------------
 # Apply Cleaning
-# ---------------------------
 def apply_text_cleaning(df):
     df = df.copy()
 
@@ -40,9 +41,7 @@ def apply_text_cleaning(df):
     return df
 
 
-# ---------------------------
 # Train / CV / Test Split
-# ---------------------------
 def split_data(df, test_size=0.2, cv_size=0.2, random_state=42):
     y = df['Class'].astype(int).values
 
@@ -65,9 +64,7 @@ def split_data(df, test_size=0.2, cv_size=0.2, random_state=42):
     return X_train, X_cv, X_test, y_train, y_cv, y_test
 
 
-# ---------------------------
 # Vectorization
-# ---------------------------
 def vectorize(train_df, cv_df, test_df, max_text_features=10000):
     # TF-IDF for each feature type
     tfidf_text = TfidfVectorizer(
@@ -107,9 +104,7 @@ def vectorize(train_df, cv_df, test_df, max_text_features=10000):
     return X_train, X_cv, X_test, vectorizers
 
 
-# ---------------------------
 # Full Pipeline Function
-# ---------------------------
 def preprocess_pipeline(df, max_text_features=10000):
     """
     End-to-end preprocessing:
