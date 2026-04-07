@@ -24,10 +24,10 @@ def _read_from_zip(zip_path, sep=",", names=None, skiprows=None):
 
 
 # Load Training Data
-def load_training_data(data_dir="data/raw"):
+def load_training_data(data_dir="data/raw/"):
     data_dir = Path(data_dir)
 
-    variants_zip = data_dir / "training_variant.zip"
+    variants_zip = data_dir / "training_variants.zip"
     text_zip = data_dir / "training_text.zip"
 
     # Variants (normal CSV)
@@ -51,7 +51,7 @@ def load_training_data(data_dir="data/raw"):
 def load_test_data(data_dir="data/raw"):
     data_dir = Path(data_dir)
 
-    variants_zip = data_dir / "test_variant.zip"
+    variants_zip = data_dir / "test_variants.zip"
     text_zip = data_dir / "test_text.zip"
 
     variants_df = _read_from_zip(variants_zip)
