@@ -1,13 +1,13 @@
 # src/main.py
 
-from src.data.loader import load_all_data
-from src.feature.preprocessing import preprocess_pipeline
-from src.models.registry import get_models
+from data.loader import load_all_data
+from feature.preprocessing import preprocess_pipeline
+from models.registry import get_models
 
-from src.evaluation.metrics import evaluate_classification
-from src.evaluation.fairness import fairness_report
-from src.utils.logger import TBLogger
-from src.utils.tracking import CarbonTracker
+from evaluation.metrics import evaluate_classification
+from evaluation.fairness import fairness_report
+from utils.logger import TBLogger
+from utils.tracking import CarbonTracker
 
 
 def main():
