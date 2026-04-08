@@ -43,7 +43,12 @@ def apply_text_cleaning(df):
 
 # Train / CV / Test Split
 def split_data(df, test_size=0.2, cv_size=0.2, random_state=42):
-    y = df['Class'].astype(int).values
+    df = df.copy()
+
+    # 🔧 FIX: convert labels from 1–9 → 0–8
+    df['Class'] = df['Class'].astype(int) - 1
+
+    y = df['Class'].values
 
     X_train, X_temp, y_train, y_temp = train_test_split(
         df, y,
