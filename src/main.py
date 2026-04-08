@@ -6,6 +6,9 @@ from evaluation.metrics import evaluate_classification
 from evaluation.fairness import fairness_report
 from utils.logger import TBLogger
 from utils.tracking import CarbonTracker
+import os
+import joblib
+from datetime import datetime
 
 
 def main():
@@ -18,7 +21,7 @@ def main():
 
     # 2. Preprocessing
     print("[INFO] Preprocessing...")
-    X_train, X_cv, X_test, y_train, y_cv, y_test, vectorizers = preprocess_pipeline(train_df)
+    X_train, X_cv, X_test, y_train, y_cv, y_test, vectorizers, cv_df = preprocess_pipeline(train_df)
 
     # 3. Models
     print("[INFO] Loading models...")
@@ -53,7 +56,7 @@ def main():
                 model,
                 X_cv,
                 y_cv,
-                group_values=train_df.iloc[X_cv.indices if hasattr(X_cv, "indices") else slice(None)]['Gene']
+                group_values=cv_df['Gene']
             )
 
             print("Fairness Gap:", fairness["accuracy_gap"])
@@ -62,6 +65,14 @@ def main():
             print("Fairness skipped:", e)
 
         results[name] = metrics
+
+        # Save model
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_filename = f"{name}_{timestamp}.joblib"
+        model_path = os.path.join("outputs", "models", model_filename)
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        joblib.dump(model, model_path)
+        print(f"[INFO] Saved model to {model_path}")
 
     # 6. Stop Carbon Tracking
     emissions = tracker.stop()
