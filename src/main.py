@@ -1,5 +1,3 @@
-# src/main.py
-
 from data.loader import load_all_data
 from feature.preprocessing import preprocess_pipeline
 from models.registry import get_models
