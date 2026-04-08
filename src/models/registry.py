@@ -4,13 +4,13 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.svm import LinearSVC
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import MultinomialNB
 
 from xgboost import XGBClassifier
 
 
-# ---------------------------
 # Individual Model Builders
-# ---------------------------
 def get_logistic_regression():
     return LogisticRegression(
         max_iter=1000,
@@ -60,9 +60,18 @@ def get_svm():
     return CalibratedClassifierCV(base_model, method="sigmoid")
 
 
-# ---------------------------
+def get_knn():
+    return KNeighborsClassifier(
+        n_neighbors=5,
+        n_jobs=-1
+    )
+
+
+def get_naive_bayes():
+    return MultinomialNB()
+
+
 # Model Registry
-# ---------------------------
 def get_models(selected_models=None):
     """
     Returns a dictionary of models.
@@ -78,15 +87,19 @@ def get_models(selected_models=None):
         - xgboost
         - ridge
         - svm
+        - knn
+        - naive_bayes
     """
 
     models = {
         "logreg": get_logistic_regression(),
         "random_forest": get_random_forest(),
-        "gradient_boosting": get_gradient_boosting(),
-        "xgboost": get_xgboost(),
+        "svm": get_svm(),
+        "knn": get_knn(),
+        "naive_bayes": get_naive_bayes(),
         "ridge": get_ridge(),
-        "svm": get_svm()
+        "gradient_boosting": get_gradient_boosting(),
+        "xgboost": get_xgboost()
     }
 
     if selected_models is not None:
