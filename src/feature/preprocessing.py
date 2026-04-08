@@ -134,7 +134,8 @@ def preprocess_pipeline(df, max_text_features=10000):
         y_train,
         y_cv,
         y_test,
-        vectorizers
+        vectorizers,
+        cv_df
     )
 
 
