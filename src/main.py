@@ -10,18 +10,18 @@ from utils.tracking import CarbonTracker
 
 def main():
 
-    print("🚀 Starting pipeline...\n")
+    print("[INFO] Starting pipeline...\n")
 
     # 1. Load Data
-    print("📦 Loading data...")
+    print("[INFO] Loading data...")
     train_df, test_df = load_all_data()
 
     # 2. Preprocessing
-    print("🧹 Preprocessing...")
+    print("[INFO] Preprocessing...")
     X_train, X_cv, X_test, y_train, y_cv, y_test, vectorizers = preprocess_pipeline(train_df)
 
     # 3. Models
-    print("🤖 Loading models...")
+    print("[INFO] Loading models...")
     models = get_models()
 
     # 4. Logger + Carbon Tracker
@@ -34,7 +34,7 @@ def main():
 
     # 5. Training Loop
     for step, (name, model) in enumerate(models.items()):
-        print(f"\n🔹 Training: {name}")
+        print(f"\n[INFO] Training: {name}")
 
         # Train
         model.fit(X_train, y_train)
@@ -65,14 +65,14 @@ def main():
 
     # 6. Stop Carbon Tracking
     emissions = tracker.stop()
-    print(f"\n🌱 Carbon Emissions: {emissions:.6f} kg CO2")
+    print(f"\n[INFO] Carbon Emissions: {emissions:.6f} kg CO2")
 
     logger.log_metrics("carbon", {"emissions": emissions})
 
     logger.close()
 
     # 7. Final Results
-    print("\n📊 Final Results:")
+    print("\n[INFO] Final Results:")
     for model_name, metrics in results.items():
         print(f"{model_name}: {metrics}")
 
