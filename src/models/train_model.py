@@ -1,6 +1,6 @@
 from sklearn.metrics import accuracy_score, log_loss
 
-def train_and_evaluate(models, X_train, y_train, X_val, y_val):
+def train_and_evaluate(models, X_train, y_train, X_cv, y_cv, X_test=None, y_test=None):
 
     results = {}
 
@@ -9,18 +9,31 @@ def train_and_evaluate(models, X_train, y_train, X_val, y_val):
 
         model.fit(X_train, y_train)
 
-        y_pred = model.predict(X_val)
-        acc = accuracy_score(y_val, y_pred)
+        # Train metrics
+        train_acc = accuracy_score(y_train, model.predict(X_train))
+
+        # CV metrics
+        cv_acc = accuracy_score(y_cv, model.predict(X_cv))
+
+        # Test metrics
+        test_acc = accuracy_score(y_test, model.predict(X_test)) if X_test is not None and y_test is not None else None
 
         try:
-            y_prob = model.predict_proba(X_val)
-            loss = log_loss(y_val, y_prob)
+            train_loss = log_loss(y_train, model.predict_proba(X_train))
+            cv_loss = log_loss(y_cv, model.predict_proba(X_cv))
+            test_loss = log_loss(y_test, model.predict_proba(X_test)) if X_test is not None and y_test is not None else None
         except:
-            loss = None
+            train_loss = None
+            cv_loss = None
+            test_loss = None
 
         results[name] = {
-            "accuracy": acc,
-            "log_loss": loss
+            "train_accuracy": train_acc,
+            "train_loss": train_loss,
+            "cv_accuracy": cv_acc,
+            "cv_loss": cv_loss,
+            "test_accuracy": test_acc,
+            "test_loss": test_loss
         }
 
     return results
@@ -42,11 +55,15 @@ X_train, X_cv, X_test, y_train, y_cv, y_test, vectorizers = preprocess_pipeline(
 models = get_models()
 
 # 4. Train and Evaluate
-results = train_and_evaluate(models, X_train, y_train, X_cv, y_cv)
+results = train_and_evaluate(models, X_train, y_train, X_cv, y_cv, X_test, y_test)
 
 # 5. Print Results
 for model_name, metrics in results.items():
     print(f"Model: {model_name}")
-    print(f"  Accuracy: {metrics['accuracy']:.4f}")
-    print(f"  Log Loss: {metrics['log_loss']}")
+    print(f"  Train Accuracy: {metrics['train_accuracy']:.4f}")
+    print(f"  Train Loss: {metrics['train_loss']}")
+    print(f"  CV Accuracy: {metrics['cv_accuracy']:.4f}")
+    print(f"  CV Loss: {metrics['cv_loss']}")
+    print(f"  Test Accuracy: {metrics['test_accuracy']:.4f}" if metrics['test_accuracy'] else "  Test Accuracy: None")
+    print(f"  Test Loss: {metrics['test_loss']}")
 """
