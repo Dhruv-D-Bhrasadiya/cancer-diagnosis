@@ -10,6 +10,16 @@ from sklearn.naive_bayes import MultinomialNB
 from xgboost import XGBClassifier
 
 
+# Check for GPU availability
+def is_gpu_available():
+    try:
+        import torch
+        print(f"GPU available: {torch.cuda.is_available()}")
+        return torch.cuda.is_available()
+    except ImportError:
+        return False
+
+
 # Individual Model Builders
 def get_logistic_regression():
     return LogisticRegression(
@@ -36,6 +46,10 @@ def get_gradient_boosting():
 
 
 def get_xgboost():
+    # Dynamically select device based on hardware
+    gpu_available = is_gpu_available()
+    device = "cuda" if gpu_available else "cpu"
+
     return XGBClassifier(
         n_estimators=200,
         learning_rate=0.1,
@@ -44,7 +58,9 @@ def get_xgboost():
         colsample_bytree=0.8,
         eval_metric="logloss",
         n_jobs=-1,
-        random_state=42
+        random_state=42,
+        tree_method="hist",
+        device=device
     )
 
 
