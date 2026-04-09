@@ -1,5 +1,3 @@
-# src/evaluation/metrics.py
-
 import numpy as np
 from sklearn.metrics import (
     accuracy_score,
@@ -11,9 +9,7 @@ from sklearn.metrics import (
 )
 
 
-# ---------------------------
 # Core Evaluation
-# ---------------------------
 def evaluate_classification(model, X, y):
     """
     Evaluates a classification model.
@@ -29,6 +25,7 @@ def evaluate_classification(model, X, y):
 
     # Basic metrics
     results["accuracy"] = accuracy_score(y, y_pred)
+    results["misclassification_rate"] = 1 - results["accuracy"]
     results["f1_macro"] = f1_score(y, y_pred, average="macro")
     results["precision_macro"] = precision_score(y, y_pred, average="macro", zero_division=0)
     results["recall_macro"] = recall_score(y, y_pred, average="macro", zero_division=0)
@@ -43,9 +40,7 @@ def evaluate_classification(model, X, y):
     return results
 
 
-# ---------------------------
 # Confusion Matrix
-# ---------------------------
 def get_confusion_matrix(model, X, y):
     """
     Returns confusion matrix
@@ -57,9 +52,7 @@ def get_confusion_matrix(model, X, y):
     return cm
 
 
-# ---------------------------
 # Per-Class Accuracy
-# ---------------------------
 def per_class_accuracy(model, X, y):
     """
     Computes accuracy per class
@@ -81,26 +74,28 @@ def per_class_accuracy(model, X, y):
     return results
 
 
-# ---------------------------
 # Aggregate Evaluation (Train + Val/Test)
-# ---------------------------
-def evaluate_all(model, X_train, y_train, X_val, y_val):
+def evaluate_all(model, X_train, y_train, X_val, y_val, X_test=None, y_test=None):
     """
-    Returns evaluation on both train and validation sets
+    Returns evaluation on train, validation, and optionally test sets.
     """
 
     train_metrics = evaluate_classification(model, X_train, y_train)
     val_metrics = evaluate_classification(model, X_val, y_val)
 
-    return {
+    results = {
         "train": train_metrics,
         "validation": val_metrics
     }
 
+    if X_test is not None and y_test is not None:
+        test_metrics = evaluate_classification(model, X_test, y_test)
+        results["test"] = test_metrics
 
-# ---------------------------
+    return results
+
+
 # Pretty Print (Optional)
-# ---------------------------
 def print_metrics(metrics_dict, model_name="model"):
     """
     Nicely prints metrics
@@ -135,7 +130,7 @@ lr = models["logistic_regression"]
 lr.fit(X_train, y_train)
 
 # 3. Evaluate
-results = evaluate_all(lr, X_train, y_train, X_cv, y_cv)
+results = evaluate_all(lr, X_train, y_train, X_cv, y_cv, X_test, y_test)
 
 # 4. Print Results
 print_metrics(results, model_name="Logistic Regression")
