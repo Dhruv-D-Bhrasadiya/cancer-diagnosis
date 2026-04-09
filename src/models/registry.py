@@ -114,8 +114,8 @@ def get_models(selected_models=None):
         "knn": get_knn(),
         "naive_bayes": get_naive_bayes(),
         "ridge": get_ridge(),
-        "gradient_boosting": get_gradient_boosting(),
-        "xgboost": get_xgboost()
+        "xgboost": get_xgboost(),
+        "gradient_boosting": get_gradient_boosting()
     }
 
     if selected_models is not None:
