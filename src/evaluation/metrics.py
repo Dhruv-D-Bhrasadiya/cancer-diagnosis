@@ -26,9 +26,9 @@ def evaluate_classification(model, X, y):
     # Basic metrics
     results["accuracy"] = accuracy_score(y, y_pred)
     results["misclassification_rate"] = 1 - results["accuracy"]
-    results["f1_macro"] = f1_score(y, y_pred, average="macro")
-    results["precision_macro"] = precision_score(y, y_pred, average="macro", zero_division=0)
-    results["recall_macro"] = recall_score(y, y_pred, average="macro", zero_division=0)
+    results["f1_score"] = f1_score(y, y_pred, average="macro")
+    results["precision_score"] = precision_score(y, y_pred, average="macro", zero_division=0)
+    results["recall_score"] = recall_score(y, y_pred, average="macro", zero_division=0)
 
     # Log Loss (if available)
     try:
