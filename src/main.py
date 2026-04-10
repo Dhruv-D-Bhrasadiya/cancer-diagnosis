@@ -2,7 +2,7 @@ from data.loader import load_all_data
 from feature.preprocessing import preprocess_pipeline
 from models.registry import get_models
 
-from evaluation.metrics import evaluate_classification
+from evaluation.metrics import evaluate_all, get_confusion_matrix, per_class_accuracy, print_metrics
 from evaluation.fairness import fairness_report
 from utils.logger import TBLogger
 from utils.tracking import CarbonTracker
@@ -42,10 +42,20 @@ def main():
         # Train
         model.fit(X_train, y_train)
 
-        # Evaluate
-        metrics = evaluate_classification(model, X_cv, y_cv)
+        # Evaluate all splits
+        all_metrics = evaluate_all(model, X_train, y_train, X_cv, y_cv, X_test, y_test)
+        print_metrics(all_metrics, model_name=name)
 
-        print(f"Metrics: {metrics}")
+        # Confusion Matrix
+        cm = get_confusion_matrix(model, X_cv, y_cv)
+        print(f"\n[INFO] Confusion Matrix for {name} (Validation):\n{cm}")
+
+        # Per-class accuracy
+        pca = per_class_accuracy(model, X_cv, y_cv)
+        print(f"\n[INFO] Per-Class Accuracy for {name} (Validation):\n{pca}")
+
+        # Set validation metrics for downstream tasks
+        metrics = all_metrics["validation"]
 
         # Log to TensorBoard
         logger.log_metrics(name, metrics, step=step)

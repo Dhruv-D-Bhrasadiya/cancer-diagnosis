@@ -1,4 +1,4 @@
-from sklearn.metrics import accuracy_score, log_loss
+from evaluation.metrics import evaluate_all, get_confusion_matrix, per_class_accuracy, print_metrics
 
 def train_and_evaluate(models, X_train, y_train, X_cv, y_cv, X_test=None, y_test=None):
 
@@ -9,31 +9,19 @@ def train_and_evaluate(models, X_train, y_train, X_cv, y_cv, X_test=None, y_test
 
         model.fit(X_train, y_train)
 
-        # Train metrics
-        train_acc = accuracy_score(y_train, model.predict(X_train))
+        all_metrics = evaluate_all(model, X_train, y_train, X_cv, y_cv, X_test, y_test)
+        
+        # Pretty Print Results
+        print_metrics(all_metrics, model_name=name)
 
-        # CV metrics
-        cv_acc = accuracy_score(y_cv, model.predict(X_cv))
-
-        # Test metrics
-        test_acc = accuracy_score(y_test, model.predict(X_test)) if X_test is not None and y_test is not None else None
-
-        try:
-            train_loss = log_loss(y_train, model.predict_proba(X_train))
-            cv_loss = log_loss(y_cv, model.predict_proba(X_cv))
-            test_loss = log_loss(y_test, model.predict_proba(X_test)) if X_test is not None and y_test is not None else None
-        except:
-            train_loss = None
-            cv_loss = None
-            test_loss = None
-
+        # Additional metrics
+        cm = get_confusion_matrix(model, X_cv, y_cv)
+        pca = per_class_accuracy(model, X_cv, y_cv)
+        
         results[name] = {
-            "train_accuracy": train_acc,
-            "train_loss": train_loss,
-            "cv_accuracy": cv_acc,
-            "cv_loss": cv_loss,
-            "test_accuracy": test_acc,
-            "test_loss": test_loss
+            "metrics": all_metrics,
+            "confusion_matrix": cm,
+            "per_class_accuracy": pca
         }
 
     return results
@@ -44,26 +32,17 @@ def train_and_evaluate(models, X_train, y_train, X_cv, y_cv, X_test=None, y_test
 from src.data.loader import load_training_data
 from src.feature.preprocessing import preprocess_pipeline
 from src.models.registry import get_models
+from src.models.train_model import train_and_evaluate
 
 # 1. Load Data
 df = load_training_data()
 
 # 2. Preprocess and Split
-X_train, X_cv, X_test, y_train, y_cv, y_test, vectorizers = preprocess_pipeline(df)
+X_train, X_cv, X_test, y_train, y_cv, y_test, vectorizers, _ = preprocess_pipeline(df)
 
 # 3. Get Models from Registry
 models = get_models()
 
 # 4. Train and Evaluate
 results = train_and_evaluate(models, X_train, y_train, X_cv, y_cv, X_test, y_test)
-
-# 5. Print Results
-for model_name, metrics in results.items():
-    print(f"Model: {model_name}")
-    print(f"  Train Accuracy: {metrics['train_accuracy']:.4f}")
-    print(f"  Train Loss: {metrics['train_loss']}")
-    print(f"  CV Accuracy: {metrics['cv_accuracy']:.4f}")
-    print(f"  CV Loss: {metrics['cv_loss']}")
-    print(f"  Test Accuracy: {metrics['test_accuracy']:.4f}" if metrics['test_accuracy'] else "  Test Accuracy: None")
-    print(f"  Test Loss: {metrics['test_loss']}")
 """
