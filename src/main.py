@@ -10,6 +10,9 @@ import os
 import joblib
 from datetime import datetime
 
+from tqdm import tqdm
+import time
+
 
 def main():
 
@@ -36,8 +39,11 @@ def main():
     results = {}
 
     # 5. Training Loop
-    for step, (name, model) in enumerate(models.items()):
+    pbar = tqdm(models.items(), desc="Overall Progress")
+    for step, (name, model) in enumerate(pbar):
+        pbar.set_postfix(model=name)
         print(f"\n[INFO] Training: {name}")
+        start_time = time.time()
 
         # Train
         model.fit(X_train, y_train)
@@ -83,6 +89,9 @@ def main():
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
         joblib.dump(model, model_path)
         print(f"[INFO] Saved model to {model_path}")
+        
+        elapsed_time = time.time() - start_time
+        print(f"[INFO] Finished {name} in {elapsed_time:.2f} seconds.")
 
     # 6. Stop Carbon Tracking
     emissions = tracker.stop()
