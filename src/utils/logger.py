@@ -20,35 +20,40 @@ class TBLogger:
         else:
             self.log_path = Path(log_dir) / timestamp
 
-        self.writer = SummaryWriter(self.log_path)
+        self.writers = {}
+
+    def get_writer(self, model_name):
+        if model_name not in self.writers:
+            self.writers[model_name] = SummaryWriter(self.log_path / model_name)
+        return self.writers[model_name]
 
     # Log scalar metrics
-    def log_metrics(self, model_name, metrics: dict, step=0):
+    def log_metrics(self, model_name, metrics: dict, split="train", step=0):
         """
         Logs metrics like accuracy, log_loss
 
         Example:
-            logger.log_metrics("xgboost", {"accuracy": 0.91, "log_loss": 0.3})
+            logger.log_metrics("xgboost", {"accuracy": 0.91, "log_loss": 0.3}, split="train")
         """
+        writer = self.get_writer(model_name)
         for key, value in metrics.items():
             if value is not None:
-                self.writer.add_scalar(f"{model_name}/{key}", value, step)
+                writer.add_scalar(f"{split.upper()}/{key}", value, step)
 
     # Log parameters (optional)
     def log_params(self, model_name, params: dict):
-        """
-        Logs model hyperparameters as text
-        """
-        param_str = "\n".join([f"{k}: {v}" for k, v in params.items()])
-        self.writer.add_text(f"{model_name}/params", param_str)
+        writer = self.get_writer(model_name)
+        for key, value in params.items():
+            writer.add_text(f"Params/{key}", str(value))
+
+    def close(self):
+        for writer in self.writers.values():
+            writer.close()
 
     # Log message (general)
-    def log_text(self, tag, text):
-        self.writer.add_text(tag, text)
-
-    # Close logger
-    def close(self):
-        self.writer.close()
+    def log_text(self, tag, text, model_name="general"):
+        writer = self.get_writer(model_name)
+        writer.add_text(tag, text)
 
 
 """

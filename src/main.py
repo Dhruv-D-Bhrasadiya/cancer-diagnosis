@@ -30,11 +30,8 @@ def main():
     print("[INFO] Loading models...")
     models = get_models()
 
-    # 4. Logger + Carbon Tracker
+    # 4. Logger
     logger = TBLogger(experiment_name="multi_model_experiment")
-    tracker = CarbonTracker(experiment_name="multi_model_experiment")
-
-    tracker.start()
 
     results = {}
 
@@ -45,8 +42,16 @@ def main():
         print(f"\n[INFO] Training: {name}")
         start_time = time.time()
 
+        # Carbon Tracker per model
+        tracker = CarbonTracker(experiment_name=f"model_{name}")
+        tracker.start()
+
         # Train
         model.fit(X_train, y_train)
+        
+        # Stop Carbon Tracker
+        emissions = tracker.stop()
+        print(f"\n[INFO] Carbon Emissions for {name}: {emissions:.6f} kg CO2")
 
         # Evaluate all splits
         all_metrics = evaluate_all(model, X_train, y_train, X_cv, y_cv, X_test, y_test)
@@ -60,11 +65,16 @@ def main():
         pca = per_class_accuracy(model, X_cv, y_cv)
         print(f"\n[INFO] Per-Class Accuracy for {name} (Validation):\n{pca}")
 
+        # Log to TensorBoard
+        # Log Carbon Emissions
+        logger.log_metrics(name, {"emissions": emissions}, split="CARBON", step=0)
+        
+        # Log metrics for train, validation, and test
+        for split, split_metrics in all_metrics.items():
+            logger.log_metrics(name, split_metrics, split=split.upper(), step=0)
+
         # Set validation metrics for downstream tasks
         metrics = all_metrics["validation"]
-
-        # Log to TensorBoard
-        logger.log_metrics(name, metrics, step=step)
 
         # Fairness (using Gene as group)
         try:
@@ -92,12 +102,6 @@ def main():
         
         elapsed_time = time.time() - start_time
         print(f"[INFO] Finished {name} in {elapsed_time:.2f} seconds.")
-
-    # 6. Stop Carbon Tracking
-    emissions = tracker.stop()
-    print(f"\n[INFO] Carbon Emissions: {emissions:.6f} kg CO2")
-
-    logger.log_metrics("carbon", {"emissions": emissions})
 
     logger.close()
 
