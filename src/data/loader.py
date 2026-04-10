@@ -2,7 +2,7 @@ import pandas as pd
 import zipfile
 from pathlib import Path
 import io
-
+from tqdm.auto import tqdm
 
 # Helper: Read CSV from ZIP
 def _read_from_zip(zip_path, sep=",", names=None, skiprows=None):
@@ -30,19 +30,26 @@ def load_training_data(data_dir="data/raw/"):
     variants_zip = data_dir / "training_variants.zip"
     text_zip = data_dir / "training_text.zip"
 
-    # Variants (normal CSV)
-    variants_df = _read_from_zip(variants_zip)
+    with tqdm(total=3, desc="Loading Training Data", leave=False) as pbar:
+        # Variants (normal CSV)
+        pbar.set_postfix_str("variants")
+        variants_df = _read_from_zip(variants_zip)
+        pbar.update(1)
 
-    # Text (special separator)
-    text_df = _read_from_zip(
-        text_zip,
-        sep=r"\|\|",
-        names=["ID", "TEXT"],
-        skiprows=1
-    )
+        # Text (special separator)
+        pbar.set_postfix_str("text")
+        text_df = _read_from_zip(
+            text_zip,
+            sep=r"\|\|",
+            names=["ID", "TEXT"],
+            skiprows=1
+        )
+        pbar.update(1)
 
-    # Merge
-    df = variants_df.merge(text_df, on="ID", how="left")
+        # Merge
+        pbar.set_postfix_str("merging")
+        df = variants_df.merge(text_df, on="ID", how="left")
+        pbar.update(1)
 
     return df
 
@@ -54,24 +61,37 @@ def load_test_data(data_dir="data/raw"):
     variants_zip = data_dir / "test_variants.zip"
     text_zip = data_dir / "test_text.zip"
 
-    variants_df = _read_from_zip(variants_zip)
+    with tqdm(total=3, desc="Loading Test Data", leave=False) as pbar:
+        # Variants
+        pbar.set_postfix_str("variants")
+        variants_df = _read_from_zip(variants_zip)
+        pbar.update(1)
 
-    text_df = _read_from_zip(
-        text_zip,
-        sep=r"\|\|",
-        names=["ID", "TEXT"],
-        skiprows=1
-    )
+        # Text
+        pbar.set_postfix_str("text")
+        text_df = _read_from_zip(
+            text_zip,
+            sep=r"\|\|",
+            names=["ID", "TEXT"],
+            skiprows=1
+        )
+        pbar.update(1)
 
-    df = variants_df.merge(text_df, on="ID", how="left")
+        # Merge
+        pbar.set_postfix_str("merging")
+        df = variants_df.merge(text_df, on="ID", how="left")
+        pbar.update(1)
 
     return df
 
 
 # Combined Loader
 def load_all_data(data_dir="data/raw"):
-    train_df = load_training_data(data_dir)
-    test_df = load_test_data(data_dir)
+    with tqdm(total=2, desc="Overall Data Loading Progress") as pbar:
+        train_df = load_training_data(data_dir)
+        pbar.update(1)
+        test_df = load_test_data(data_dir)
+        pbar.update(1)
 
     return train_df, test_df
 
