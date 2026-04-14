@@ -4,6 +4,7 @@ __pycache__/
 
 # Compressed Data
 *.zip
+*.7z
 
 # Data Files (Commonly huge or sensitive)
 *.csv
