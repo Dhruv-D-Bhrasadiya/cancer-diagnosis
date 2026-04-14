@@ -12,5 +12,5 @@ __pycache__/
 # Specific Data Files/Folders
 data/raw/test_variants
 data/raw/test_text
-data/raw/train_variants
-data/raw/train_text
+data/raw/training_variants
+data/raw/training_text
