@@ -1,3 +1,15 @@
+# Python Cache
 __pycache__/
+*.py[cod]
+
+# Compressed Data
 *.zip
+
+# Data Files (Commonly huge or sensitive)
 *.csv
+
+# Specific Data Files/Folders
+data/raw/test_variants
+data/raw/test_text
+data/raw/train_variants
+data/raw/train_text
