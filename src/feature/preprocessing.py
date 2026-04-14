@@ -354,6 +354,99 @@ class PreprocessingConfig:
                 f"balance={self.balancing_method})")
 
 
+# ===================== FEATURE PREPARATION (MODULAR) =====================
+
+def prepare_gene_features(train_df, val_df, test_df, y_train, encoding_method="tfidf"):
+    """Prepare Gene features separately.
+
+    Args:
+        train_df, val_df, test_df: DataFrames with Gene column
+        y_train: Training labels
+        encoding_method: Categorical encoding method
+
+    Returns:
+        tuple: (X_train_gene, X_val_gene, X_test_gene, encoder)
+    """
+    print("[INFO] Preparing Gene features...")
+    encoder = CategoricalEncoder(encoding_method, "Gene")
+    encoder.fit(train_df, y_train)
+
+    X_train_gene = encoder.transform(train_df)
+    X_val_gene = encoder.transform(val_df)
+    X_test_gene = encoder.transform(test_df)
+
+    print(f"[INFO] Gene features shape - Train: {X_train_gene.shape}, Val: {X_val_gene.shape}, Test: {X_test_gene.shape}")
+    return X_train_gene, X_val_gene, X_test_gene, encoder
+
+
+def prepare_variation_features(train_df, val_df, test_df, y_train, encoding_method="tfidf"):
+    """Prepare Variation features separately.
+
+    Args:
+        train_df, val_df, test_df: DataFrames with Variation column
+        y_train: Training labels
+        encoding_method: Categorical encoding method
+
+    Returns:
+        tuple: (X_train_var, X_val_var, X_test_var, encoder)
+    """
+    print("[INFO] Preparing Variation features...")
+    encoder = CategoricalEncoder(encoding_method, "Variation")
+    encoder.fit(train_df, y_train)
+
+    X_train_var = encoder.transform(train_df)
+    X_val_var = encoder.transform(val_df)
+    X_test_var = encoder.transform(test_df)
+
+    print(f"[INFO] Variation features shape - Train: {X_train_var.shape}, Val: {X_val_var.shape}, Test: {X_test_var.shape}")
+    return X_train_var, X_val_var, X_test_var, encoder
+
+
+def prepare_text_features(train_df, val_df, test_df, text_method="tfidf", max_features=1000):
+    """Prepare TEXT features separately.
+
+    Args:
+        train_df, val_df, test_df: DataFrames with TEXT column (cleaned)
+        text_method: Text extraction method
+        max_features: Max features for TF-IDF
+
+    Returns:
+        tuple: (X_train_text, X_val_text, X_test_text, extractor)
+    """
+    print("[INFO] Preparing TEXT features...")
+    extractor = TextFeatureExtractor(text_method, max_features)
+    extractor.fit(train_df['TEXT'].values)
+
+    X_train_text = extractor.transform(train_df['TEXT'].values)
+    X_val_text = extractor.transform(val_df['TEXT'].values)
+    X_test_text = extractor.transform(test_df['TEXT'].values)
+
+    print(f"[INFO] TEXT features shape - Train: {X_train_text.shape}, Val: {X_val_text.shape}, Test: {X_test_text.shape}")
+    return X_train_text, X_val_text, X_test_text, extractor
+
+
+def merge_features(train_parts, val_parts, test_parts):
+    """Merge feature parts from different sources into single feature matrices.
+
+    Args:
+        train_parts: List of feature matrices for training data
+        val_parts: List of feature matrices for validation data
+        test_parts: List of feature matrices for test data
+
+    Returns:
+        tuple: (X_train, X_val, X_test) - merged feature matrices
+    """
+    print("[INFO] Merging features...")
+
+    X_train = hstack(train_parts).tocsr()
+    X_val = hstack(val_parts).tocsr()
+    X_test = hstack(test_parts).tocsr()
+
+    print(f"[INFO] Merged shapes - Train: {X_train.shape}, Val: {X_val.shape}, Test: {X_test.shape}")
+
+    return X_train, X_val, X_test
+
+
 def preprocess_pipeline(
     train_df,
     val_df,
@@ -363,14 +456,15 @@ def preprocess_pipeline(
 ):
     """
     End-to-end preprocessing pipeline with configurable techniques.
-    
+    Prepares each feature type separately, then merges them.
+
     Args:
         train_df: Training dataframe
         val_df: Validation dataframe
         test_df: Test dataframe
         config: PreprocessingConfig object or dict of kwargs
         **kwargs: Alternative way to pass config parameters
-        
+
     Returns:
         tuple: (X_train, X_val, X_test, y_train, y_val, y_test)
     """
@@ -379,80 +473,66 @@ def preprocess_pipeline(
         config = PreprocessingConfig(**kwargs)
     elif isinstance(config, dict):
         config = PreprocessingConfig(**config)
-    
+
     print(f"[INFO] Using preprocessing config: {config}")
-    
+
     # 1. Clean text
     print("[INFO] Cleaning text...")
     train_df = apply_text_cleaning(train_df)
     val_df = apply_text_cleaning(val_df)
     test_df = apply_text_cleaning(test_df)
-    
-    # 2. Extract labels and remove Class column from features
+
+    # 2. Extract labels
     y_train = (train_df['Class'].astype(int) - 1).values
     y_val = (val_df['Class'].astype(int) - 1).values
     y_test = (test_df['Class'].astype(int) - 1).values
-    
-    # 3. Encode categorical features (Gene and/or Variation)
-    print("[INFO] Encoding categorical features...")
-    categorical_parts = []
-    
+
+    # 3. Prepare features separately
+    train_parts = []
+    val_parts = []
+    test_parts = []
+
+    # Prepare TEXT features
+    X_train_text, X_val_text, X_test_text, _ = prepare_text_features(
+        train_df, val_df, test_df,
+        text_method=config.text_method,
+        max_features=config.max_text_features
+    )
+    train_parts.append(X_train_text)
+    val_parts.append(X_val_text)
+    test_parts.append(X_test_text)
+
+    # Prepare Gene features if needed
     if config.categorical_target in ["Gene", "both"]:
-        gene_encoder = CategoricalEncoder(config.categorical_encoding, "Gene")
-        gene_encoder.fit(train_df, y_train)
-        X_train_gene = gene_encoder.transform(train_df)
-        X_val_gene = gene_encoder.transform(val_df)
-        X_test_gene = gene_encoder.transform(test_df)
-        categorical_parts.append((X_train_gene, X_val_gene, X_test_gene))
-    
+        X_train_gene, X_val_gene, X_test_gene, _ = prepare_gene_features(
+            train_df, val_df, test_df, y_train,
+            encoding_method=config.categorical_encoding
+        )
+        train_parts.append(X_train_gene)
+        val_parts.append(X_val_gene)
+        test_parts.append(X_test_gene)
+
+    # Prepare Variation features if needed
     if config.categorical_target in ["Variation", "both"]:
-        var_encoder = CategoricalEncoder(config.categorical_encoding, "Variation")
-        var_encoder.fit(train_df, y_train)
-        X_train_var = var_encoder.transform(train_df)
-        X_val_var = var_encoder.transform(val_df)
-        X_test_var = var_encoder.transform(test_df)
-        categorical_parts.append((X_train_var, X_val_var, X_test_var))
-    
-    # 4. Extract text features
-    print("[INFO] Extracting text features...")
-    text_extractor = TextFeatureExtractor(config.text_method, config.max_text_features)
-    text_extractor.fit(train_df['TEXT'].values)
-    X_train_text = text_extractor.transform(train_df['TEXT'].values)
-    X_val_text = text_extractor.transform(val_df['TEXT'].values)
-    X_test_text = text_extractor.transform(test_df['TEXT'].values)
-    
-    # 5. Combine all features
-    print("[INFO] Combining features...")
-    features_to_combine = [X_train_text, X_val_text, X_test_text]
-    for X_train_cat, X_val_cat, X_test_cat in categorical_parts:
-        features_to_combine.extend([X_train_cat, X_val_cat, X_test_cat])
-    
-    X_train = hstack([features_to_combine[0]] + [f for i, f in enumerate(features_to_combine) if i % 3 == 1]).tocsr()
-    X_val = hstack([features_to_combine[1]] + [f for i, f in enumerate(features_to_combine) if i % 3 == 2]).tocsr()
-    X_test = hstack([features_to_combine[2]] + [f for i, f in enumerate(features_to_combine) if i % 3 == 0]).tocsr()
-    
-    # Simplified combination (fix the above)
-    train_parts = [X_train_text]
-    val_parts = [X_val_text]
-    test_parts = [X_test_text]
-    
-    for X_train_cat, X_val_cat, X_test_cat in categorical_parts:
-        train_parts.append(X_train_cat)
-        val_parts.append(X_val_cat)
-        test_parts.append(X_test_cat)
-    
-    X_train = hstack(train_parts).tocsr()
-    X_val = hstack(val_parts).tocsr()
-    X_test = hstack(test_parts).tocsr()
-    
-    # 6. Apply balancing technique
+        X_train_var, X_val_var, X_test_var, _ = prepare_variation_features(
+            train_df, val_df, test_df, y_train,
+            encoding_method=config.categorical_encoding
+        )
+        train_parts.append(X_train_var)
+        val_parts.append(X_val_var)
+        test_parts.append(X_test_var)
+
+    # 4. Merge all features
+    X_train, X_val, X_test = merge_features(train_parts, val_parts, test_parts)
+
+    # 5. Apply balancing technique
     print("[INFO] Applying balancing technique...")
     balancer = BalancingTechnique(config.balancing_method, config.random_state)
     X_train, y_train = balancer.fit_resample(X_train, y_train)
-    
+
     print(f"[INFO] Final shapes - Train: {X_train.shape}, Val: {X_val.shape}, Test: {X_test.shape}")
     print(f"[INFO] Class distribution - Train: {np.bincount(y_train)}")
-    
+
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
@@ -484,9 +564,9 @@ def get_all_preprocessing_configs():
 """
 How to use it:
 
-# Method 1: Use default config
+# Method 1: Use default config (all features merged)
 from src.data.loader import load_processed_data
-from src.feature.preprocessing import preprocess_pipeline
+from src.feature.preprocessing import preprocess_pipeline, apply_text_cleaning
 
 train_df, val_df, test_df, _ = load_processed_data()
 X_train, X_val, X_test, y_train, y_val, y_test = preprocess_pipeline(train_df, val_df, test_df)
@@ -501,11 +581,57 @@ config = PreprocessingConfig(
     balancing_method="smote_hybrid"
 )
 X_train, X_val, X_test, y_train, y_val, y_test = preprocess_pipeline(
-    train_df, val_df, test_df, 
+    train_df, val_df, test_df,
     config=config
 )
 
-# Method 3: Generate and iterate through all configs
+# Method 3: Prepare features separately and merge them
+from src.data.loader import load_processed_data
+from src.feature.preprocessing import (
+    apply_text_cleaning,
+    prepare_gene_features,
+    prepare_variation_features,
+    prepare_text_features,
+    merge_features,
+    BalancingTechnique
+)
+
+train_df, val_df, test_df, _ = load_processed_data()
+
+# Clean text first
+train_df = apply_text_cleaning(train_df)
+val_df = apply_text_cleaning(val_df)
+test_df = apply_text_cleaning(test_df)
+
+# Extract labels
+y_train = (train_df['Class'].astype(int) - 1).values
+y_val = (val_df['Class'].astype(int) - 1).values
+
+# Prepare each feature type separately with custom configs
+X_train_text, X_val_text, X_test_text, _ = prepare_text_features(
+    train_df, val_df, test_df, text_method="tfidf", max_features=1000
+)
+
+X_train_gene, X_val_gene, X_test_gene, _ = prepare_gene_features(
+    train_df, val_df, test_df, y_train, encoding_method="target"
+)
+
+X_train_var, X_val_var, X_test_var, _ = prepare_variation_features(
+    train_df, val_df, test_df, y_train, encoding_method="response"
+)
+
+# Merge all features
+X_train, X_val, X_test = merge_features(
+    [X_train_text, X_train_gene, X_train_var],
+    [X_val_text, X_val_gene, X_val_var],
+    [X_test_text, X_test_gene, X_test_var]
+)
+
+# Apply balancing
+balancer = BalancingTechnique(method="smote_hybrid")
+X_train, y_train = balancer.fit_resample(X_train, y_train)
+
+# Method 4: Generate and iterate through all configs
 from src.feature.preprocessing import get_all_preprocessing_configs, preprocess_pipeline
 
 configs = get_all_preprocessing_configs()
