@@ -1,0 +1,15 @@
+{
+  "config": "Config(cat_enc=tfidf, cat_target=Variation, text=truncated, balance=smote_undersample)",
+  "models": {
+    "logreg": {
+      "accuracy": 0.3072289156626506,
+      "misclassification_rate": 0.6927710843373494,
+      "f1_score": 0.16357926645908238,
+      "precision_score": 0.16020407414742927,
+      "recall_score": 0.1797586285976379,
+      "log_loss": 1.7698584682276652,
+      "carbon_emissions": 5.7070260784758696e-06
+    }
+  },
+  "preprocess_time": 66.70822930335999
+}
