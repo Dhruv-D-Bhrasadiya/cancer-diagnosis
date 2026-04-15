@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}About - Cancer Diagnosis Prediction System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">About Cancer Diagnosis Prediction System</h2>
+            </div>
+            <div class="card-body">
+                <h4 class="mt-4">Overview</h4>
+                <p>
+                    This is an AI-powered cancer diagnosis prediction system that uses machine learning to 
+                    predict cancer types based on clinical and genomic data. The system is built with Flask 
+                    and scikit-learn, providing a user-friendly interface for medical professionals and researchers.
+                </p>
+
+                <h4 class="mt-4">Available Models</h4>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6>Implemented Models</h6>
+                        <ul>
+                            <li><strong>Logistic Regression</strong> - Fast, interpretable baseline</li>
+                            <li><strong>Random Forest</strong> - Ensemble method with feature importance</li>
+                            <li><strong>Gradient Boosting</strong> - Sequential ensemble learning</li>
+                            <li><strong>XGBoost</strong> - Optimized gradient boosting with GPU support</li>
+                            <li><strong>Ridge Classifier</strong> - Linear model with regularization</li>
+                            <li><strong>Support Vector Machine</strong> - Kernel-based classification</li>
+                            <li><strong>K-Nearest Neighbors</strong> - Instance-based learning</li>
+                            <li><strong>Naive Bayes</strong> - Probabilistic classifier</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Model Capabilities</h6>
+                        <ul>
+                            <li><i class="bi bi-check-circle text-success"></i> Single & batch predictions</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Probability estimates</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Feature importance analysis</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Model interpretability</li>
+                            <li><i class="bi bi-check-circle text-success"></i> CSV file upload support</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Decision scores</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h4 class="mt-4">Features</h4>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="feature-box">
+                            <h5><i class="bi bi-lightning-fill text-warning"></i> Fast Predictions</h5>
+                            <p>Get instant predictions for single samples or batch process CSV files</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-box">
+                            <h5><i class="bi bi-shield-check text-success"></i> Model Reliability</h5>
+                            <p>Confidence scores and probability estimates for each prediction</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="feature-box">
+                            <h5><i class="bi bi-pie-chart text-info"></i> Interpretability</h5>
+                            <p>Understand model decisions through feature importance visualization</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="mt-4">How to Use</h4>
+                <ol>
+                    <li><strong>Select a Model:</strong> Choose from the available trained models</li>
+                    <li><strong>Provide Input:</strong> Either enter JSON data for single predictions or upload a CSV file</li>
+                    <li><strong>Get Results:</strong> View predictions with confidence scores and probabilities</li>
+                    <li><strong>Analyze:</strong> Check feature importance for model interpretation</li>
+                </ol>
+
+                <h4 class="mt-4">Data Requirements</h4>
+                <p>For single predictions, provide feature values as a JSON object:</p>
+                <pre><code>{
+  "feature_1": 1.5,
+  "feature_2": 2.3,
+  "feature_3": 0.8
+}</code></pre>
+
+                <p>For batch predictions, upload a CSV file with features as columns and samples as rows.</p>
+
+                <h4 class="mt-4">Dataset</h4>
+                <p>
+                    This system is trained on the <strong>MSK Redefining Cancer Treatment</strong> dataset from Kaggle,
+                    which contains genomic and clinical data for cancer classification. The dataset includes:
+                </p>
+                <ul>
+                    <li>Genetic variants and mutations</li>
+                    <li>Clinical text descriptions</li>
+                    <li>Multiple cancer types</li>
+                    <li>Train/validation/test splits</li>
+                </ul>
+
+                <h4 class="mt-4">API Endpoints</h4>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Endpoint</th>
+                                <th>Method</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>/api/models</code></td>
+                                <td>GET</td>
+                                <td>List available models</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/predict</code></td>
+                                <td>POST</td>
+                                <td>Make single prediction</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/upload-predict</code></td>
+                                <td>POST</td>
+                                <td>Batch predictions from CSV</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/feature-importance/&lt;model&gt;</code></td>
+                                <td>GET</td>
+                                <td>Get feature importance</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/model-info/&lt;model&gt;</code></td>
+                                <td>GET</td>
+                                <td>Get model information</td>
+                            </tr>
+                            <tr>
+                                <td><code>/api/model-stats</code></td>
+                                <td>GET</td>
+                                <td>Get all models statistics</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="mt-4">Technical Stack</h4>
+                <ul>
+                    <li><strong>Backend:</strong> Flask, scikit-learn, pandas, numpy</li>
+                    <li><strong>Frontend:</strong> Bootstrap 5, Chart.js</li>
+                    <li><strong>ML Models:</strong> sklearn, XGBoost, Joblib</li>
+                    <li><strong>Deployment:</strong> Python 3.9+</li>
+                </ul>
+
+                <h4 class="mt-4">Disclaimer</h4>
+                <p class="alert alert-warning">
+                    <strong>Important:</strong> This system is for research and educational purposes only. 
+                    It should not be used for clinical decision-making without professional medical evaluation 
+                    and validation by qualified healthcare professionals.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
