@@ -1,0 +1,15 @@
+{
+  "config": "Config(cat_enc=tfidf, cat_target=Gene, text=tfidf, balance=none)",
+  "models": {
+    "logreg": {
+      "accuracy": 0.49698795180722893,
+      "misclassification_rate": 0.5030120481927711,
+      "f1_score": 0.4467723763119047,
+      "precision_score": 0.43162786053864993,
+      "recall_score": 0.5073775124084722,
+      "log_loss": 1.3038966123373974,
+      "carbon_emissions": 5.10851621794294e-06
+    }
+  },
+  "preprocess_time": 61.29234600067139
+}
