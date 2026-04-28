@@ -85,7 +85,7 @@ class TextVectorization:
         text_tfidf = tfidf.fit_transform(self.df[col])
         return text_tfidf
     
-class FIRST_LAST_TEXT:
+class FisrtLastText:
     def __init__(self, df):
         self.df = df
 
@@ -95,7 +95,7 @@ class FIRST_LAST_TEXT:
         self.df[f"{col}_last"] = self.df[col].apply(lambda x: x.split()[-1] if len(x.split()) > 0 else "")
         return self.df[[f"{col}_first", f"{col}_last"]]
 
-class TRUCATE_TEXT:
+class TruncatedText:
     def __init__(self, df):
         self.df = df
 
@@ -104,7 +104,7 @@ class TRUCATE_TEXT:
         self.df[f"{col}_truncated"] = self.df[col].apply(lambda x: ' '.join(x.split()[:max_len]))
         return self.df[f"{col}_truncated"]
     
-class WORD2VEC_TEXT:
+class Word2VecText:
     def __init__(self, df):
         self.df = df
 
@@ -115,7 +115,7 @@ class WORD2VEC_TEXT:
         word2vec_features = self.df[col].apply(lambda x: model.wv[x.split()].mean(axis=0) if len(x.split()) > 0 else np.zeros(vector_size))
         return np.vstack(word2vec_features.values)
 
-class BALANCING:
+class Balancing:
     """
         Using SMOTE
     """
