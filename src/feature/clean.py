@@ -5,6 +5,7 @@ import numpy as np
 from category_encoders import BinaryEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction import FeatureHasher
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.combine import SMOTEENN
@@ -68,6 +69,24 @@ class LabelEncoding:
         le = LabelEncoder()
         label_encoded = le.fit_transform(self.df[col])
         return label_encoded
+
+class FrequencyEncoding:
+    def __init__(self, df):
+        self.df = df
+
+    def frequency_encode(self, col):
+        freq = self.df[col].value_counts() / len(self.df)
+        return self.df[col].map(freq)
+    
+class HashingEncoding:
+    def __init__(self, df):
+        self.df = df
+
+    def hashing_encode(self, col, n_features=10):
+        hasher = FeatureHasher(n_features=n_features, input_type='string')
+        hashed_features = hasher.transform(self.df[col].astype(str))
+        return hashed_features
+
 
 class TextVectorization:
     def __init__(self, df):
