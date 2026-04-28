@@ -5,6 +5,9 @@ import numpy as np
 from category_encoders import BinaryEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTEENN
 from nltk.corpus import stopwords
 nltk.download('stopwords')
 
@@ -101,7 +104,7 @@ class TRUCATE_TEXT:
         self.df[f"{col}_truncated"] = self.df[col].apply(lambda x: ' '.join(x.split()[:max_len]))
         return self.df[f"{col}_truncated"]
     
-class Word2VecText:
+class WORD2VEC_TEXT:
     def __init__(self, df):
         self.df = df
 
@@ -112,3 +115,24 @@ class Word2VecText:
         word2vec_features = self.df[col].apply(lambda x: model.wv[x.split()].mean(axis=0) if len(x.split()) > 0 else np.zeros(vector_size))
         return np.vstack(word2vec_features.values)
 
+class BALANCING:
+    """
+        Using SMOTE
+    """
+    def __init__(self, df):
+        self.df = df
+
+    def smote_over_sample(self, X, y):
+        smote = SMOTE()
+        X_resampled, y_resampled = smote.fit_resample(X, y)
+        return X_resampled, y_resampled
+    
+    def smote_under_sample(self, X, y):
+        under_sampler = RandomUnderSampler()
+        X_resampled, y_resampled = under_sampler.fit_resample(X, y)
+        return X_resampled, y_resampled
+    
+    def smote_combined_sample(self, X, y):
+        smote_enn = SMOTEENN()
+        X_resampled, y_resampled = smote_enn.fit_resample(X, y)
+        return X_resampled, y_resampled
