@@ -1,0 +1,56 @@
+preprocessing:
+  # Categorical encoding methods: 'tfidf', 'response', 'target', 'frequency', 'hashing', 'binary'
+  categorical_encodings:
+    - tfidf
+    - response
+    - binary
+    - target
+    - frequency
+    - hashing
+
+  # Categorical targets: 'Gene', 'Variation', 'both'
+  categorical_targets:
+    - Gene
+    - Variation
+    - Class
+    - both
+
+  # Text methods: 'tfidf', 'truncated', 'first_last', 'word2vec' (if gensim installed)
+  text_methods:
+    - tfidf
+    - truncated
+    - first_last
+
+  # Balancing methods: 'none', 'smote_oversample', 'smote_undersample', 'smote_hybrid'
+  balancing_methods:
+    - none
+    - smote_oversample
+    - smote_undersample
+    - smote_hybrid
+
+  # Text feature parameters
+  max_text_features: 1000
+  random_state: 42
+
+# Model Configuration
+# Only specified models will be trained
+models:
+  - logreg
+  - xgboost
+  - random_forest
+  - svm
+  - knn
+  - naive_bayes
+  - ridge
+  - gradient_boosting
+
+# Training Configuration
+training:
+  use_existing_data: true
+  sample_configs: null  # Set to null to use all combinations of above techniques
+  # Or manually specify individual configs for testing (optional)
+  # sample_configs:
+  #   - categorical_encoding: binary
+  #     categorical_target: both
+  #     text_method: tfidf
+  #     balancing_method: smote_hybrid

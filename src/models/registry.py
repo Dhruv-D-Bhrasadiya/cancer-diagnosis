@@ -1,5 +1,3 @@
-# src/models/registry.py
-
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.svm import LinearSVC
@@ -21,10 +19,15 @@ def is_gpu_available():
 
 
 # Individual Model Builders
-def get_logistic_regression():
+def get_balaneced_logistic_regression():
     return LogisticRegression(
         max_iter=1000,
         class_weight='balanced'
+    )
+
+def get_logistic_regression():
+    return LogisticRegression(
+        max_iter=1000
     )
 
 
@@ -109,6 +112,7 @@ def get_models(selected_models=None):
 
     models = {
         "logreg": get_logistic_regression(),
+        "balanced_logreg": get_balaneced_logistic_regression(),
         "random_forest": get_random_forest(),
         "svm": get_svm(),
         "knn": get_knn(),
