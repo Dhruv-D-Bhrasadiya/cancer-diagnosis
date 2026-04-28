@@ -1,7 +1,7 @@
 preprocessing:
   # Categorical encoding methods: 'tfidf', 'response', 'target', 'frequency', 'hashing', 'binary'
   categorical_encodings:
-    - tfidf
+    - onehot
     - response
     - binary
     - target
@@ -13,14 +13,13 @@ preprocessing:
     - Gene
     - Variation
     - Class
-    - both
 
   # Text methods: 'tfidf', 'truncated', 'first_last', 'word2vec' (if gensim installed)
   text_methods:
     - tfidf
     - truncated
     - first_last
-
+    - word2vec
   # Balancing methods: 'none', 'smote_oversample', 'smote_undersample', 'smote_hybrid'
   balancing_methods:
     - none
