@@ -1,12 +1,17 @@
 import re
 import pandas as pd
+import nltk
+import numpy as np
 from category_encoders import BinaryEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
-import nltk
 from nltk.corpus import stopwords
 nltk.download('stopwords')
 
+try:
+    from gensim.models import Word2Vec
+except ImportError:
+    print("[WARNING] gensim not installed. Word2VecText will not work.")
 
 
 class OHE:
@@ -95,3 +100,15 @@ class TRUCATE_TEXT:
         self.df[col] = self.df[col].fillna("")
         self.df[f"{col}_truncated"] = self.df[col].apply(lambda x: ' '.join(x.split()[:max_len]))
         return self.df[f"{col}_truncated"]
+    
+class Word2VecText:
+    def __init__(self, df):
+        self.df = df
+
+    def word2vec_vectorize(self, col, vector_size=100):
+        self.df[col] = self.df[col].fillna("")
+        sentences = self.df[col].apply(lambda x: x.split()).tolist()
+        model = Word2Vec(sentences, vector_size=vector_size, window=5, min_count=1, workers=4)
+        word2vec_features = self.df[col].apply(lambda x: model.wv[x.split()].mean(axis=0) if len(x.split()) > 0 else np.zeros(vector_size))
+        return np.vstack(word2vec_features.values)
+
