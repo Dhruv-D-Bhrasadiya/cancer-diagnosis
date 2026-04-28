@@ -33,6 +33,13 @@ class OHE:
         class_ohe = pd.get_dummies(train_df["Class"], prefix="Class")
         return class_ohe
     
+class ResponseEncoding:
+    def __init__(self, df):
+        self.df = df
+
+    def response_encode(self, col, target):
+        mean_target = self.df.groupby(col)[target.name].mean()
+        return self.df[col].map(mean_target)
 
 class TargetEncoding:
     def __init__(self, df):
