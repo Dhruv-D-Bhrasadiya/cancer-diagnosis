@@ -61,7 +61,3 @@ def unzipMain(FILE_PATH: str = "data/raw/msk-redefining-cancer-treatment.zip", d
     # delete unnecessary files and the zip files which are extracted
     for file in nested_zips + temp_zips:
          os.remove(file)
-
-
-
-unzipMain()

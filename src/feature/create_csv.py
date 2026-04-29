@@ -80,6 +80,3 @@ def create_csv(BASE_DIR: str = "./data/raw", OUT_DIR: str = "./data/processed"):
 
     # Print Info
     print("[INFO] All files Save to data/processed")
-
-
-create_csv()
