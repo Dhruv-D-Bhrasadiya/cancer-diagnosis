@@ -19,7 +19,8 @@ preprocessing:
     - tfidf
     - truncated
     - first_last
-    - word2vec
+    # - word2vec
+  
   # Balancing methods: 'none', 'smote_oversample', 'smote_undersample', 'smote_hybrid'
   balancing_methods:
     - none

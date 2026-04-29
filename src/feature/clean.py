@@ -87,8 +87,9 @@ class HashingEncoding:
         hashed_features = hasher.transform(self.df[col].astype(str))
         return hashed_features
 
+# Text Vectorization 
 
-class TextVectorization:
+class TF_IDF:
     def __init__(self, df):
         self.df = df
 
