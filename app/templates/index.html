@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+ {% extends "base.html" %}
 
 {% block title %}Home - Cancer Diagnosis Prediction System{% endblock %}
 
@@ -70,9 +70,19 @@
             <div class="card-body">
                 <form id="singlePredictionForm">
                     <div class="mb-3">
-                        <label class="form-label">Input Data (JSON)</label>
-                        <textarea id="inputData" class="form-control" rows="6" placeholder='{"feature1": 1.5, "feature2": 2.3, ...}'></textarea>
-                        <small class="form-text text-muted">Enter features as JSON object</small>
+                        <label class="form-label">Gene Name</label>
+                        <input type="text" id="geneInput" class="form-control"
+                               placeholder="e.g. BRCA1, TP53, EGFR">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Variation / Mutation</label>
+                        <input type="text" id="variationInput" class="form-control"
+                               placeholder="e.g. R248Q, Deletion, Amplification">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Clinical Text <small class="text-muted">(optional)</small></label>
+                        <textarea id="textInput" class="form-control" rows="4"
+                                  placeholder="Paste relevant clinical notes or research text..."></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-play-circle"></i> Predict
@@ -81,9 +91,9 @@
                 <div id="predictionResult" class="mt-3 d-none">
                     <div class="alert alert-success">
                         <h6>Prediction Result</h6>
-                        <p><strong>Prediction:</strong> <span id="predictionValue">-</span></p>
+                        <p><strong>Predicted Class:</strong> <span id="predictionValue">-</span></p>
                         <div id="probabilitiesDiv" class="d-none mt-2">
-                            <p><strong>Probabilities:</strong></p>
+                            <p><strong>Class Probabilities:</strong></p>
                             <div id="probabilitiesContent"></div>
                         </div>
                     </div>
@@ -146,6 +156,156 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- XAI — LIME & SHAP                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="row mt-4">
+    <div class="col-lg-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header text-white"
+                 style="background: linear-gradient(135deg, #6f42c1 0%, #0d6efd 100%);">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightbulb"></i> Explainable AI — LIME &amp; SHAP
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <p class="text-muted small mb-3">
+                    Make a single prediction first, then click a button below to understand
+                    <em>why</em> the model made that decision.
+                </p>
+
+                <!-- Action buttons -->
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                    <button id="runLimeBtn" class="btn btn-outline-primary" disabled>
+                        <i class="bi bi-search"></i> Run LIME
+                    </button>
+                    <button id="runShapBtn" class="btn btn-outline-secondary" disabled
+                            style="border-color:#6f42c1; color:#6f42c1;">
+                        <i class="bi bi-diagram-3"></i> Run SHAP
+                    </button>
+                    <span id="xaiNote" class="text-muted small align-self-center ms-1">
+                        Make a prediction first to enable explanations.
+                    </span>
+                </div>
+
+                <!-- Loading spinners -->
+                <div id="limeLoading" class="d-none text-center py-3">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted small">Running LIME — this may take 15–30 seconds…</p>
+                </div>
+                <div id="shapLoading" class="d-none text-center py-3">
+                    <div class="spinner-border" role="status" style="color:#6f42c1;"></div>
+                    <p class="mt-2 text-muted small">Running SHAP — this may take 30–60 seconds…</p>
+                </div>
+
+                <!-- Error display -->
+                <div id="xaiError" class="alert alert-danger d-none mt-2"></div>
+
+                <!-- ── LIME Results ─────────────────────────────────────── -->
+                <div id="limeSection" class="d-none mt-2">
+                    <hr>
+                    <h6 class="fw-bold text-primary">
+                        <i class="bi bi-search"></i> LIME Explanation
+                    </h6>
+                    <p class="text-muted small">
+                        LIME perturbs the input locally and fits a simple linear model to
+                        approximate the classifier near this point.
+                        <strong>Positive weights</strong> push toward the predicted class;
+                        <strong>negative weights</strong> push away.
+                    </p>
+
+                    <div class="row">
+                        <!-- Bar chart for predicted class -->
+                        <div class="col-lg-6 mb-3">
+                            <h6 class="text-secondary small">
+                                Top features — predicted class
+                                <span id="limePredClassBadge" class="badge bg-primary ms-1"></span>
+                            </h6>
+                            <canvas id="limeChart" height="280"></canvas>
+                        </div>
+
+                        <!-- Per-class table with selector -->
+                        <div class="col-lg-6 mb-3">
+                            <h6 class="text-secondary small">Feature weights — all classes</h6>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0 me-2">Select class:</label>
+                                <select id="limeClassSelect"
+                                        class="form-select form-select-sm d-inline-block w-auto"></select>
+                            </div>
+                            <div style="max-height:280px; overflow-y:auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>Feature</th>
+                                            <th class="text-end">Weight</th>
+                                            <th>Direction</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="limeTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── SHAP Results ─────────────────────────────────────── -->
+                <div id="shapSection" class="d-none mt-2">
+                    <hr>
+                    <h6 class="fw-bold" style="color:#6f42c1;">
+                        <i class="bi bi-diagram-3"></i> SHAP Explanation
+                    </h6>
+                    <p class="text-muted small">
+                        SHAP assigns each feature a contribution based on game theory.
+                        <strong>Positive values</strong> increase the predicted class probability;
+                        <strong>negative values</strong> decrease it.
+                    </p>
+
+                    <div class="row">
+                        <!-- Global mean |SHAP| bar chart -->
+                        <div class="col-lg-6 mb-3">
+                            <h6 class="text-secondary small">
+                                Mean |SHAP| — global feature importance
+                            </h6>
+                            <canvas id="shapGlobalChart" height="280"></canvas>
+                        </div>
+
+                        <!-- Per-class SHAP table with selector -->
+                        <div class="col-lg-6 mb-3">
+                            <h6 class="text-secondary small">SHAP values — per class</h6>
+                            <div class="mb-2">
+                                <label class="form-label small mb-0 me-2">Select class:</label>
+                                <select id="shapClassSelect"
+                                        class="form-select form-select-sm d-inline-block w-auto"></select>
+                            </div>
+                            <div style="max-height:280px; overflow-y:auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>Feature</th>
+                                            <th class="text-end">SHAP Value</th>
+                                            <th>Direction</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="shapTableBody"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Expected value info -->
+                            <div id="shapExpectedValue"
+                                 class="alert alert-light border small mt-2 d-none">
+                                <strong>Base values (expected output per class):</strong>
+                                <span id="shapExpectedValueContent"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /card-body -->
+        </div><!-- /card -->
     </div>
 </div>
 

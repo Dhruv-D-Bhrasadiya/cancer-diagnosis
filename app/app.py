@@ -11,16 +11,17 @@ import numpy as np
 import pandas as pd
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+from scipy.sparse import hstack, issparse
+from sklearn.preprocessing import normalize
+import re
 import traceback
 
 # Add src directory to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
 
-from feature.preprocessing import preprocess_pipeline
-from data.loader import load_processed_data
 from evaluation.metrics import evaluate_classification
-from evaluation.interpretability import get_feature_importance
+from evaluation.interpretability import get_feature_importance, explain_with_lime, explain_with_shap
 
 # Flask App Configuration
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -50,14 +51,17 @@ def allowed_file(filename):
 def load_models():
     """Load all trained models from outputs/models directory."""
     global loaded_models
-    
+
     models_dir = project_root / "outputs" / "models"
-    
+
     if not models_dir.exists():
         print(f"[WARNING] Models directory not found: {models_dir}")
         return False
-    
+
     for model_file in models_dir.glob("*.joblib"):
+        # Skip vectorizer files — only load actual models
+        if any(x in model_file.stem for x in ['vectorizer', 'vec']):
+            continue
         try:
             model_name = model_file.stem
             model = joblib.load(str(model_file))
@@ -65,42 +69,89 @@ def load_models():
             print(f"[INFO] Loaded model: {model_name}")
         except Exception as e:
             print(f"[ERROR] Failed to load {model_file}: {e}")
-    
+
     return len(loaded_models) > 0
 
 
 def load_preprocessing_data():
-    """Load preprocessing data and vectorizers."""
+    """
+    Load vectorizers saved by train_model.py and rebuild X_train
+    for use as LIME/SHAP background data.
+    """
     global preprocessor_info
-    
+
     try:
-        # Load processed data
-        train_df, val_df, test_df, test_comp_df = load_processed_data()
-        
-        # Extract features from training data for preprocessing reference
-        from feature.preprocessing import get_all_preprocessing_configs
-        configs = get_all_preprocessing_configs()
-        
-        # Use first config as default
-        if configs:
-            config = configs[0]
-            X_train, X_val, X_test, y_train, y_val, y_test = preprocess_pipeline(
-                train_df, val_df, test_df, config=config
-            )
-            
-            preprocessor_info['X_train'] = X_train
-            preprocessor_info['y_train'] = y_train
-            
-            # Try to extract feature names if available
-            if hasattr(X_train, 'get_feature_names_out'):
-                preprocessor_info['feature_names'] = X_train.get_feature_names_out()
-            elif hasattr(X_train, 'columns'):
-                preprocessor_info['feature_names'] = X_train.columns.tolist()
-            
-            print("[INFO] Preprocessing data loaded successfully")
-            return True
+        from nltk.corpus import stopwords
+        import nltk
+        nltk.download('stopwords', quiet=True)
+        stop_words = set(stopwords.words('english'))
+    except Exception:
+        stop_words = set()
+
+    def clean_text(text):
+        if not isinstance(text, str):
+            return ''
+        text = re.sub('[^a-zA-Z0-9\n]', ' ', text)
+        text = re.sub(r'\s+', ' ', text).lower()
+        return ' '.join(w for w in text.split() if w not in stop_words)
+
+    models_dir = project_root / "outputs" / "models"
+
+    # Check vectorizers saved by train_model.py exist
+    gene_vec_path = models_dir / "gene_vectorizer.joblib"
+    var_vec_path  = models_dir / "var_vectorizer.joblib"
+    text_vec_path = models_dir / "text_vectorizer.joblib"
+
+    if not all(p.exists() for p in [gene_vec_path, var_vec_path, text_vec_path]):
+        print("[WARNING] Vectorizers not found in outputs/models/. LIME/SHAP background unavailable.")
+        return False
+
+    try:
+        gene_vec = joblib.load(gene_vec_path)
+        var_vec  = joblib.load(var_vec_path)
+        text_vec = joblib.load(text_vec_path)
+
+        preprocessor_info['vectorizers'] = {
+            'gene': gene_vec,
+            'var':  var_vec,
+            'text': text_vec
+        }
+
+        # Rebuild X_train from processed CSV for LIME/SHAP background
+        train_csv = project_root / "data/processed/train_data.csv"
+        if not train_csv.exists():
+            print("[WARNING] train_data.csv not found. LIME/SHAP background unavailable.")
+            return False
+
+        train_df = pd.read_csv(train_csv)
+        train_df['TEXT']      = train_df['TEXT'].fillna('').apply(clean_text)
+        train_df['Gene']      = train_df['Gene'].fillna('').str.lower()
+        train_df['Variation'] = train_df['Variation'].fillna('').str.lower()
+
+        X_train = hstack([
+            gene_vec.transform(train_df['Gene']),
+            var_vec.transform(train_df['Variation']),
+            normalize(text_vec.transform(train_df['TEXT']), axis=0)
+        ]).tocsr()  # CSR supports row indexing needed by LIME/SHAP
+
+        preprocessor_info['X_train']  = X_train
+        preprocessor_info['y_train']  = train_df['Class'].values
+
+        # Build feature names: gene vocab + var vocab + text vocab
+        feature_names = (
+            list(gene_vec.get_feature_names_out()) +
+            list(var_vec.get_feature_names_out()) +
+            list(text_vec.get_feature_names_out())
+        )
+        preprocessor_info['feature_names'] = feature_names
+
+        print(f"[INFO] Preprocessing data loaded. X_train shape: {X_train.shape}")
+        print(f"[INFO] Feature names: {len(feature_names)} total")
+        return True
+
     except Exception as e:
         print(f"[WARNING] Could not load preprocessing data: {e}")
+        traceback.print_exc()
         return False
 
 
@@ -127,61 +178,96 @@ def get_models():
 
 @app.route('/api/predict', methods=['POST'])
 def predict():
-    """Make prediction with the selected model."""
+    """
+    Make prediction with the selected model.
+    Accepts either:
+      - Clinical input: {"model": "logreg", "gene": "BRCA1", "variation": "R248Q", "text": "..."}
+      - Raw feature vector: {"model": "logreg", "input": {"f1": 0.1, ...}}
+    """
     try:
         data = request.get_json()
-        
-        if not data or 'model' not in data or 'input' not in data:
-            return jsonify({'error': 'Missing required fields: model, input'}), 400
-        
+
+        if not data or 'model' not in data:
+            return jsonify({'error': 'Missing required field: model'}), 400
+
         model_name = data['model']
-        input_data = data['input']
-        
-        # Validate model exists
         if model_name not in loaded_models:
             return jsonify({'error': f'Model not found: {model_name}'}), 404
-        
+
         model = loaded_models[model_name]
-        
-        # Convert input to proper format
-        if isinstance(input_data, dict):
-            # Single sample input
-            X = np.array([list(input_data.values())])
-        elif isinstance(input_data, list):
-            X = np.array(input_data)
+
+        # ── Clinical input path (Gene + Variation + Text) ────────────────────
+        if 'gene' in data or 'variation' in data:
+            vecs = preprocessor_info.get('vectorizers')
+            if vecs is None:
+                return jsonify({'error': 'Vectorizers not loaded.'}), 503
+
+            import re
+            from nltk.corpus import stopwords
+            try:
+                stop_words = set(stopwords.words('english'))
+            except Exception:
+                stop_words = set()
+
+            def clean_text(text):
+                if not isinstance(text, str): return ''
+                text = re.sub('[^a-zA-Z0-9\n]', ' ', text)
+                text = re.sub(r'\s+', ' ', text).lower()
+                return ' '.join(w for w in text.split() if w not in stop_words)
+
+            gene      = str(data.get('gene', '')).lower()
+            variation = str(data.get('variation', '')).lower()
+            text      = clean_text(data.get('text', ''))
+
+            X = hstack([
+                vecs['gene'].transform([gene]),
+                vecs['var'].transform([variation]),
+                normalize(vecs['text'].transform([text]), axis=0)
+            ]).tocsr()
+
+        # ── Raw feature vector path ──────────────────────────────────────────
+        elif 'input' in data:
+            input_data = data['input']
+            if isinstance(input_data, dict):
+                X = np.array([list(input_data.values())])
+            elif isinstance(input_data, list):
+                X = np.array(input_data)
+                if X.ndim == 1:
+                    X = X.reshape(1, -1)
+            else:
+                return jsonify({'error': 'Invalid input format'}), 400
         else:
-            return jsonify({'error': 'Invalid input format'}), 400
-        
-        # Make predictions
+            return jsonify({'error': 'Provide either gene/variation/text or input fields'}), 400
+
+        # ── Predict ──────────────────────────────────────────────────────────
         predictions = model.predict(X)
-        
-        # Get probabilities if available
+
         probabilities = None
         try:
             probs = model.predict_proba(X)
             probabilities = probs.tolist()
         except AttributeError:
             pass
-        
-        # Get decision scores if available
+
         decision_scores = None
         try:
             scores = model.decision_function(X)
             decision_scores = scores.tolist()
         except (AttributeError, NotImplementedError):
             pass
-        
-        response = {
+
+        # Store X as list for LIME/SHAP reuse
+        X_dense = X.toarray() if issparse(X) else X
+        return jsonify({
             'model': model_name,
             'predictions': predictions.tolist(),
             'probabilities': probabilities,
             'decision_scores': decision_scores,
-            'input_shape': X.shape,
+            'input_shape': list(X_dense.shape),
+            'X_encoded': X_dense.tolist(),   # returned so JS can pass it to LIME/SHAP
             'success': True
-        }
-        
-        return jsonify(response)
-    
+        })
+
     except Exception as e:
         print(f"[ERROR] Prediction error: {e}")
         traceback.print_exc()
@@ -345,6 +431,120 @@ def model_stats():
         return jsonify({'error': str(e), 'success': False}), 500
 
 
+@app.route('/api/explain/lime', methods=['POST'])
+def explain_lime():
+    """
+    Run LIME on a single input sample and return feature weights.
+
+    POST body (JSON):
+    {
+        "model": "<model_name>",
+        "input": {"feature1": val, ...}   OR  [[val1, val2, ...]]
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'model' not in data or 'input' not in data:
+            return jsonify({'error': 'Missing required fields: model, input'}), 400
+
+        model_name = data['model']
+        input_data = data['input']
+
+        if model_name not in loaded_models:
+            return jsonify({'error': f'Model not found: {model_name}'}), 404
+
+        model = loaded_models[model_name]
+
+        if isinstance(input_data, dict):
+            X_sample = np.array([list(input_data.values())])
+        elif isinstance(input_data, list):
+            X_sample = np.array(input_data)
+            if X_sample.ndim == 1:
+                X_sample = X_sample.reshape(1, -1)
+        else:
+            return jsonify({'error': 'Invalid input format'}), 400
+
+        X_train = preprocessor_info.get('X_train')
+        feature_names = preprocessor_info.get('feature_names')
+
+        if X_train is None:
+            return jsonify({'error': 'Training data not loaded. Cannot run LIME without background data.'}), 503
+
+        result = explain_with_lime(
+            model=model,
+            X_train=X_train,
+            X_sample=X_sample,
+            feature_names=feature_names,
+            num_features=data.get('num_features', 10),
+            num_samples=data.get('num_samples', 500)
+        )
+
+        return jsonify({'success': True, 'model': model_name, **result})
+
+    except Exception as e:
+        print(f"[ERROR] LIME explanation error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
+@app.route('/api/explain/shap', methods=['POST'])
+def explain_shap():
+    """
+    Run SHAP on a single input sample and return SHAP values.
+
+    POST body (JSON):
+    {
+        "model": "<model_name>",
+        "input": {"feature1": val, ...}   OR  [[val1, val2, ...]]
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data or 'model' not in data or 'input' not in data:
+            return jsonify({'error': 'Missing required fields: model, input'}), 400
+
+        model_name = data['model']
+        input_data = data['input']
+
+        if model_name not in loaded_models:
+            return jsonify({'error': f'Model not found: {model_name}'}), 404
+
+        model = loaded_models[model_name]
+
+        if isinstance(input_data, dict):
+            X_sample = np.array([list(input_data.values())])
+        elif isinstance(input_data, list):
+            X_sample = np.array(input_data)
+            if X_sample.ndim == 1:
+                X_sample = X_sample.reshape(1, -1)
+        else:
+            return jsonify({'error': 'Invalid input format'}), 400
+
+        X_train = preprocessor_info.get('X_train')
+        feature_names = preprocessor_info.get('feature_names')
+
+        if X_train is None:
+            return jsonify({'error': 'Training data not loaded. Cannot run SHAP without background data.'}), 503
+
+        result = explain_with_shap(
+            model=model,
+            X_train=X_train,
+            X_sample=X_sample,
+            feature_names=feature_names,
+            top_k=data.get('top_k', 15),
+            background_samples=data.get('background_samples', 50)
+        )
+
+        return jsonify({'success': True, 'model': model_name, **result})
+
+    except Exception as e:
+        print(f"[ERROR] SHAP explanation error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'success': False}), 500
+
+
 @app.route('/download/<filename>')
 def download_file(filename):
     """Download prediction results."""
@@ -380,4 +580,4 @@ if __name__ == '__main__':
     load_preprocessing_data()
     
     print("[INFO] Starting Flask development server...")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
